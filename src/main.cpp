@@ -4,7 +4,7 @@
 
 /*
   Quadrature Decoder example using hardware timer 1 (Ch1 and Ch2)
-  4x mode, with hardware filtering and edge detection (TODO)
+  4x mode, with hardware filtering and edge detection
 */
 
 #if !defined(STM32_CORE_VERSION) || (STM32_CORE_VERSION  < 0x01090000)
