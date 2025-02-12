@@ -20,6 +20,8 @@ class QuadratureDecoder {
     }
 
     // Returns the current count of the "CNT" register of the timer
+    // in units of "Tick". Each "Tick" is a single count of a valid
+    // qudrature transition. This means the endcoder is in 4x mode
     uint32_t getCountQuad(TimerFormat_t format)
     {
       uint32_t CNT_RegisterValue = LL_TIM_GetCounter(_timerObj.handle.Instance);
@@ -80,25 +82,6 @@ class QuadratureDecoder {
     
       // Initialize the TIM low level resources
       HAL_TIM_Base_Init(&(_timerObj.handle));
-    }
-
-    // Returns the current count of the "CNT" register of the timer
-    // in units of "Tick". Each "Tick" is a single count of a valid
-    // qudrature transition. This means the endcoder is in 4x mode
-    uint32_t getCountQuad(TimerFormat_t format)
-    {
-      uint32_t CNT_RegisterValue = LL_TIM_GetCounter(_timerObj.handle.Instance);
-      uint32_t Prescalerfactor = LL_TIM_GetPrescaler(_timerObj.handle.Instance) + 1;
-      uint32_t return_value;
-      // We can have more formats (like micro seconds), but for now we will stick
-      // with "Ticks" 
-      switch (format) {
-        case TICK_FORMAT:
-        default :
-          return_value = CNT_RegisterValue;
-          break;
-      }
-      return return_value;
     }
 
     // Sets up the setttings quadrature decoder mode of the timer such as
