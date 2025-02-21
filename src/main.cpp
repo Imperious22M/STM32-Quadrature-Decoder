@@ -29,7 +29,10 @@
 // Set CAN bus baud rate
 #define CAN_BAUDRATE (250000)
 
-#define SPEED_UPDATE_RATE_HZ 50 // The rate at which speed is updated in Hz
+// Speed update is at a rate of 1 ms
+#define SPEED_UPDATE_RATE_HZ 10 // The rate at which speed is updated in Hz 
+const float speedTimeRate =  1.0/SPEED_UPDATE_RATE_HZ;
+
 #define CAN_UPDATE_RATE_HZ 10 // The rate at which CAN messages are transmited in Hz
 
 // Function signature of speed calculation interrupt
@@ -66,6 +69,9 @@ void sendCanMessage(){
 volatile uint32_t overflowTime = 0; // 
 // Revolutions per second of the encoder shaft
 volatile float ticksPerSec = 0;
+// Revolutions per Millisond
+volatile float revMillisecond = 0;
+
 // Previously stored Tick Count, initialized to zero upon reset
 volatile uint16_t prevTickCnt = 0;
 void calcTickPerSec()
@@ -73,8 +79,13 @@ void calcTickPerSec()
   uint32_t curTickCnt = quadDecoder.getCountQuad(TICK_FORMAT);
   if(prevTickCnt == curTickCnt){
     overflowTime++;
-    ticksPerSec = 0;
-    //Serial.println("Overflow");
+    // If one second has passed with no new ticks, reset the overflow time
+    // and assume speed is 0
+    if(overflowTime > SPEED_UPDATE_RATE_HZ){
+      // If the overflow time is greater than 1 second, reset the overflow time
+      overflowTime = 0;
+      ticksPerSec = 0;
+    }
     return;
   }else {
     // Calculate the number of ticks per second
@@ -85,10 +96,8 @@ void calcTickPerSec()
       timeExtra = (float)overflowTime/SPEED_UPDATE_RATE_HZ;
       overflowTime = 0;
     }
-
-    ticksPerSec = (curTickCnt - prevTickCnt) / (1.0/SPEED_UPDATE_RATE_HZ + timeExtra);
+    ticksPerSec = (curTickCnt - prevTickCnt) / (speedTimeRate + timeExtra);
     prevTickCnt = curTickCnt;
-    //Serial.println(ticksPerSec);
   }
 
 }
@@ -133,5 +142,5 @@ void loop()
   Serial.print("Ticks per second: ");
   Serial.println(ticksPerSec);
   Serial.println("~~~~");
-  delay(1000);
+  delay(100);
 }
