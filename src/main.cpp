@@ -29,16 +29,11 @@
 // Set CAN bus baud rate
 #define CAN_BAUDRATE (250000)
 
-#define SPEED_UPDATE_RATE_HZ 1 // The rate at which speed is updated in Hz
+#define SPEED_UPDATE_RATE_HZ 50 // The rate at which speed is updated in Hz
 #define CAN_UPDATE_RATE_HZ 10 // The rate at which CAN messages are transmited in Hz
 
-// Revolutions per second of the encoder shaft
-float revPerSec = 0;
-// Previously stored Tick Count, initialized to zero upon reset
-volatile uint16_t prevTickCnt = 0;
-
 // Function signature of speed calculation interrupt
-void calculateRevPerSec();
+void calcTickPerSec();
 
 // Function signature to send speed and direction to CAN bus
 void sendCANMessage();
@@ -50,45 +45,8 @@ QuadratureDecoder quadDecoder(TIM1, T1CH1_Pin, T1CH2_Pin);
 // Hardware timer to send information to the CAN bus at a rate of 100 Hz
 HardwareTimer *CANTimer = new HardwareTimer(TIM4);
 
-// Determine the frequency of the T1CH1 pin
-HardwareTimer *pulseTimer = new HardwareTimer(TIM3);
-#define pin  PB_1
-
-uint32_t channelRising, channelFalling;
-volatile uint32_t FrequencyMeasured, DutycycleMeasured, LastPeriodCapture = 0, CurrentCapture, HighStateMeasured;
-uint32_t input_freq = 0;
-volatile uint32_t rolloverCompareCount = 0;
-
-// Calculates Frequency from pulseTimer
-void TIMINPUT_Capture_Rising_IT_callback(void)
-{
-  CurrentCapture = pulseTimer->getCaptureCompare(channelRising);
-  /* frequency computation */
-  if (CurrentCapture > LastPeriodCapture)
-  {
-    FrequencyMeasured = input_freq / (CurrentCapture - LastPeriodCapture);
-  }
-  else if (CurrentCapture <= LastPeriodCapture)
-  {
-    /*Compare to overflow value if we rolled over */
-    FrequencyMeasured = input_freq / (pulseTimer->getOverflow() + CurrentCapture - LastPeriodCapture);
-  }
-
-  LastPeriodCapture = CurrentCapture;
-  rolloverCompareCount = 0;
-}
-
-/* In case of timer rollover, frequency is to low to be measured set values to 0
-   To reduce minimum frequency, it is possible to increase prescaler. But this is at a cost of precision. */
-void Rollover_IT_callback(void)
-{
-  rolloverCompareCount++;
-
-  if (rolloverCompareCount > 1)
-  {
-    FrequencyMeasured = 0;
-  }
-}
+// Timer Timer
+HardwareTimer *SpeedTimer = new HardwareTimer(TIM3);
 
 // CAN Controller object
 Adafruit_MCP2515 mcp(CS_CAN,MOSI_CAN,MISO_CAN,SCK_CAN);
@@ -102,7 +60,36 @@ void sendCanMessage(){
   mcp.write('a');
   mcp.write('a');
   mcp.endPacket();
-  
+}
+
+
+volatile uint32_t overflowTime = 0; // 
+// Revolutions per second of the encoder shaft
+volatile float ticksPerSec = 0;
+// Previously stored Tick Count, initialized to zero upon reset
+volatile uint16_t prevTickCnt = 0;
+void calcTickPerSec()
+{
+  uint32_t curTickCnt = quadDecoder.getCountQuad(TICK_FORMAT);
+  if(prevTickCnt == curTickCnt){
+    overflowTime++;
+    ticksPerSec = 0;
+    //Serial.println("Overflow");
+    return;
+  }else {
+    // Calculate the number of ticks per second
+    double timeExtra = 0;
+
+    // Calculate the number of time that has passed since the last tick
+    if(overflowTime > 0){
+      timeExtra = (float)overflowTime/SPEED_UPDATE_RATE_HZ;
+      overflowTime = 0;
+    }
+
+    ticksPerSec = (curTickCnt - prevTickCnt) / (1.0/SPEED_UPDATE_RATE_HZ + timeExtra);
+    prevTickCnt = curTickCnt;
+    //Serial.println(ticksPerSec);
+  }
 
 }
 
@@ -113,57 +100,13 @@ void setup()
   // Setup CAN update Timer
   CANTimer->setOverflow(CAN_UPDATE_RATE_HZ,HERTZ_FORMAT); // Send CAN messages at the set Hz rate
   CANTimer->attachInterrupt(sendCanMessage);
-
-  // Automatically retrieve TIM instance and channelRising associated to pin
-  // This is used to be compatible with all STM32 series automatically.
-  TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(pin, PinMap_PWM);
-  channelRising = STM_PIN_CHANNEL(pinmap_function(pin, PinMap_PWM));
-  channelRising = 3;
-
-  // channelRisings come by pair for TIMER_INPUT_FREQ_DUTY_MEASUREMENT mode:
-  // channelRising1 is associated to channelFalling and channelRising3 is associated with channelRising4
-  switch (channelRising) {
-    case 1:
-      channelFalling = 2;
-      break;
-    case 2:
-      channelFalling = 1;
-      break;
-    case 3:
-      channelFalling = 4;
-      break;
-    case 4:
-      channelFalling = 3;
-      break;
-  }
-
-    // Configure rising edge detection to measure frequency
-  pulseTimer->setMode(channelRising, TIMER_INPUT_CAPTURE_RISING, pin);
-
-  // Experimental Delta T measure of 
-  // With a PrescalerFactor = 1, the minimum frequency value to measure is : TIM counter clock / CCR MAX
-  //  = (SystemCoreClock) / 65535
-  // Example on Nucleo_L476RG with systemClock at 80MHz, the minimum frequency is around 1,2 khz
-  // To reduce minimum frequency, it is possible to increase prescaler. But this is at a cost of precision.
-  // The maximum frequency depends on processing of both interruptions and thus depend on board used
-  // Example on Nucleo_L476RG with systemClock at 80MHz the interruptions processing is around 10 microseconds and thus Max frequency is around 100kHz
-  uint32_t PrescalerFactor = 1;
-  //pulseTimer->setPrescaleFactor(PrescalerFactor);
-  //pulseTimer->setOverflow(0x10000); // Max Period value to have the largest possible time to detect rising edge and avoid timer rollover
-  pulseTimer->setOverflow(20,HERTZ_FORMAT);
-  pulseTimer->attachInterrupt(channelRising, TIMINPUT_Capture_Rising_IT_callback);
-  pulseTimer->attachInterrupt(Rollover_IT_callback);
-
-
-  pulseTimer->resume();
-
-  // Compute this scale factor only once
-  input_freq = pulseTimer->getTimerClkFreq() / pulseTimer->getPrescaleFactor();
-
-  // Start speed timer
-  //SpeedTimer->resume();
   //Start CAN timer
   //CANTimer->resume();
+
+  // Start speed timer
+  SpeedTimer->setOverflow(SPEED_UPDATE_RATE_HZ,HERTZ_FORMAT); // Update speed at the set Hz rate
+  SpeedTimer->attachInterrupt(calcTickPerSec); // Attach the speed calculation function to the timer
+  SpeedTimer->resume();
 
   pinMode(CS_PIN,OUTPUT);
 
@@ -187,14 +130,8 @@ void loop()
   Serial.print("Direction: ");
   Serial.println(quadDecoder.getDirBit()? "Backward":"Forward");
   Serial.println(quadDecoder.getDirBit());
+  Serial.print("Ticks per second: ");
+  Serial.println(ticksPerSec);
   Serial.println("~~~~");
-  //Serial.println(pulseTimer->getTimerClkFreq());
-  //Serial.println(pulseTimer->getPrescaleFactor());
-  Serial.println((String)"Frequency = " + FrequencyMeasured);
-  Serial.print("Revs/S: ");
-  revPerSec = (float)FrequencyMeasured / teethNum;
-  Serial.println(revPerSec);
-  
-  Serial.println("~~~~");
-  delay(10);
+  delay(1000);
 }

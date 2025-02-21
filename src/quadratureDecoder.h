@@ -7,14 +7,33 @@
 
 class QuadratureDecoder {
   public:
+    
     QuadratureDecoder(TIM_TypeDef *TIMInstance, uint32_t CH1PinArg, uint32_t CH2Pin) : CH1Pin(CH1Pin), CH2Pin(CH2Pin)
     {
       // Set the instance of the timer
       //_instance = TIMInstance;
       // Set up the basic settings of the timer hardware
+      MyTim = new HardwareTimer(TIMInstance);
+      
       basicTimerSetup(TIMInstance);
       // Set up the quadrature decoder settings
+      
+      //MyTim = new HardwareTimer(TIMInstance);
+     // MyTim->pause();
+      //MyTim->setOverflow(MAX_RELOAD, TICK_FORMAT); // Set the timer overflow to the maximum value
+      //MyTim->setPrescaleFactor(1); 
+      //MyTim->setMode(1,TIMER_INPUT_CAPTURE_FALLING,CH1Pin);
+      //MyTim->setMode(2,TIMER_INPUT_CAPTURE_FALLING,CH2Pin);
+      //MyTim->setup(TIMInstance);
+      //MyTim->setPrescaleFactor(1);
+
+      //MyTim->resume();
+
+
       quadratureSetup();
+
+      MyTim->resume();
+
       // Set up the pins as inputs
       pinInputSetup(CH1Pin, CH2Pin);
     }
@@ -48,6 +67,7 @@ class QuadratureDecoder {
     timerObj_t _timerObj;
     const uint32_t CH1Pin;
     const uint32_t CH2Pin;
+    uint32_t quadCnt = 0; // The current count of the quadrature decoder
 
     // Sets up the basic settings of the timer hardware such 
     // as period, prescaler, etc.
@@ -68,9 +88,8 @@ class QuadratureDecoder {
       _timerObj.handle.Lock = HAL_UNLOCKED;
       _timerObj.handle.State = HAL_TIM_STATE_RESET;
 
-      // Not used for this project
-      //_timerObj.preemptPriority = TIM_IRQ_PRIO;
-      //_timerObj.subPriority = TIM_IRQ_SUBPRIO;
+      _timerObj.preemptPriority = TIM_IRQ_PRIO;
+      _timerObj.subPriority = TIM_IRQ_SUBPRIO;
 
       /* Enable timer clock. Even if it is also done in HAL_TIM_Base_MspInit(),
          it is done there so that it is possible to write registers right now */
@@ -78,7 +97,7 @@ class QuadratureDecoder {
 
       // Configure timer with some default values
       _timerObj.handle.Init.Prescaler = 0;
-      _timerObj.handle.Init.Period = MAX_RELOAD;
+      _timerObj.handle.Init.Period  = MAX_RELOAD;//= MAX_RELOAD;
       _timerObj.handle.Init.CounterMode = TIM_COUNTERMODE_UP;
       _timerObj.handle.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
       #if defined(TIM_RCR_REP)
@@ -113,6 +132,9 @@ class QuadratureDecoder {
         HAL_TIM_Encoder_Init(&(_timerObj.handle), &TIM_EncoderInitStruct); 
         // Start the Hardware Timers
         HAL_TIM_Encoder_Start(&(_timerObj.handle), TIM_CHANNEL_ALL);
+        //HAL_TIM_Encoder_Init(MyTim->getHandle(), &TIM_EncoderInitStruct); 
+        // Start the Hardware Timers
+        //HAL_TIM_Encoder_Start(MyTim->getHandle(), TIM_CHANNEL_ALL);
     }
 
     // Setup the timer pins as inputs
