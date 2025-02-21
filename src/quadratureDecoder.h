@@ -36,6 +36,12 @@ class QuadratureDecoder {
       return return_value;
     }
 
+    // Returns the current state of the direction bit for the quadrature decoder
+    // 0 = forward, 1 = backward (0 = up-counter, 1 = down-counter)
+    bool getDirBit(){
+      return (_timerObj.handle.Instance->CR1 & TIM_CR1_DIR);
+    }
+
   private:
     //TIM_TypeDef *_instance; // Timer instance (TIM1, TIM2, etc)
     HardwareTimer *MyTim; 
@@ -116,6 +122,7 @@ class QuadratureDecoder {
         pinMode(CH1Pin, INPUT);
         pinMode(CH2Pin, INPUT);
     }
+
 
 };
 
