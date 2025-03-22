@@ -5,6 +5,20 @@
 #define  TIMER_CHANNELS 4    // channel 5 and channel 6 are not considered here has they don't have gpio output and they don't have interrupt
 #define MAX_RELOAD ((1 << 16) - 1) // Currently even 32b timers are used as 16b to have generic behavior
 
+// Example on configuring TIM2 as a qudrature encoder using registers
+// configure TIM2 as Encoder input
+//RCC->APB1ENR |= 0x00000001;  // Enable clock for TIM2
+
+//TIM2->CR1   = 0x0001;     // CEN(Counter ENable)='1'     < TIM control register 1
+//TIM2->SMCR  = 0x0003;     // SMS='011' (Encoder mode 3)  < TIM slave mode control register
+//TIM2->CCMR1 = 0x0101;     // CC1S='01' CC2S='01'         < TIM capture/compare mode register 1
+//TIM2->CCMR2 = 0x0000;     //                             < TIM capture/compare mode register 2
+//TIM2->CCER  = 0x0011;     // CC1P CC2P                   < TIM capture/compare enable register
+//TIM2->PSC   = 0x0000;     // Prescaler = (0+1)           < TIM prescaler
+//TIM2->ARR   = 0xffffffff; // reload at 0xfffffff         < TIM auto-reload register
+////Tim2->BDTR
+//TIM2->CNT = 0x0000;  //reset the counter before we use it  
+
 class QuadratureDecoder {
   public:
     
@@ -17,23 +31,9 @@ class QuadratureDecoder {
       
       basicTimerSetup(TIMInstance);
       // Set up the quadrature decoder settings
-      
-      //MyTim = new HardwareTimer(TIMInstance);
-     // MyTim->pause();
-      //MyTim->setOverflow(MAX_RELOAD, TICK_FORMAT); // Set the timer overflow to the maximum value
-      //MyTim->setPrescaleFactor(1); 
-      //MyTim->setMode(1,TIMER_INPUT_CAPTURE_FALLING,CH1Pin);
-      //MyTim->setMode(2,TIMER_INPUT_CAPTURE_FALLING,CH2Pin);
-      //MyTim->setup(TIMInstance);
-      //MyTim->setPrescaleFactor(1);
-
-      //MyTim->resume();
-
-
       quadratureSetup();
 
       MyTim->resume();
-
       // Set up the pins as inputs
       pinInputSetup(CH1Pin, CH2Pin);
     }
@@ -129,9 +129,13 @@ class QuadratureDecoder {
         // to be used as with the Timers
 
         // Configure the TIM in the desired functionality
+        
         HAL_TIM_Encoder_Init(&(_timerObj.handle), &TIM_EncoderInitStruct); 
+
         // Start the Hardware Timers
+
         HAL_TIM_Encoder_Start(&(_timerObj.handle), TIM_CHANNEL_ALL);
+        
         //HAL_TIM_Encoder_Init(MyTim->getHandle(), &TIM_EncoderInitStruct); 
         // Start the Hardware Timers
         //HAL_TIM_Encoder_Start(MyTim->getHandle(), TIM_CHANNEL_ALL);
@@ -141,8 +145,8 @@ class QuadratureDecoder {
     void pinInputSetup(uint32_t CH1Pin, uint32_t CH2Pin){
         // In the STM32 Arduino Core, configuring them as Inputs is sufficient for them 
         // to be used as with the Timers
-        pinMode(CH1Pin, INPUT);
-        pinMode(CH2Pin, INPUT);
+        //pinMode(CH1Pin, INPUT);
+        //pinMode(CH2Pin, INPUT);
     }
 
 
