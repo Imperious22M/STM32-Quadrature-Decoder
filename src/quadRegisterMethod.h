@@ -5,8 +5,15 @@
 
 #include <stm32yyxx_ll_tim.h>
 
-void setupQuadTimers(){
+void overflowISRTest(){
+  Serial.println("OVERFLOW_ISR");
+  delay(4000);
+}
 
+void setupQuadTimers(){
+    static HardwareTimer *quadA = new HardwareTimer(TIM2);
+
+    // TIM 2 is 32 bit
     // Configure Quad Encoder A (TIM2) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // configure GPIO PA0 & PA1 as inputs for Encoder
     RCC->AHB1ENR |= 0x00000001;  // Enable clock for GPIOA
@@ -29,20 +36,23 @@ void setupQuadTimers(){
     TIM2->PSC   = 0x0000;     // Prescaler = (0+1)           < TIM prescaler
     TIM2->ARR   = 0xffffffff; // reload at 0xfffffff         < TIM auto-reload register
     //Tim2->BDTR
-    TIM2->CNT = 0x0000;  //reset the counter before we use it 
+    TIM2->CNT = 0xfff0;  //reset the counter before we use it 
+    TIM2->DIER = TIM_DIER_UIE; // Enable update interrupt
+    quadA->attachInterrupt(overflowISRTest);
 
+    // TIM3 is 16 bit
     // Configure Quad Encoder B (TIM3) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // configure GPIO PC8 & PC6 as inputs for Encoder
+    // configure GPIO PB4 & PB5 as inputs for Encoder
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;  // Enable clock for GPIOB
  
-    GPIOB->MODER   |= GPIO_MODER_MODER4_1 | GPIO_MODER_MODER5_1 ;           //PA0 & PA1 as Alternate Function   /*!< GPIO port mode register,               Address offset: 0x00      */
-    GPIOB->OTYPER  |= GPIO_OTYPER_OT_4 | GPIO_OTYPER_OT_5 ;                 //PA0 & PA1 as Inputs               /*!< GPIO port output type register,        Address offset: 0x04      */
-    GPIOB->OSPEEDR |= GPIO_OSPEEDER_OSPEEDR4 | GPIO_OSPEEDER_OSPEEDR5; //| GPIO_OSPEEDER_OSPEEDR5;//0x11000000;//|= GPIO_OSPEEDER_OSPEEDR0 | GPIO_OSPEEDER_OSPEEDR1 ;     // Low speed                        /*!< GPIO port output speed register,       Address offset: 0x08      */
+    GPIOB->MODER   |= GPIO_MODER_MODER4_1 | GPIO_MODER_MODER5_1 ;           //PB4 & PB5 as Alternate Function   /*!< GPIO port mode register,               Address offset: 0x00      */
+    GPIOB->OTYPER  |= GPIO_OTYPER_OT_4 | GPIO_OTYPER_OT_5 ;                 //PB4 & PB5 as Inputs               /*!< GPIO port output type register,        Address offset: 0x04      */
+    GPIOB->OSPEEDR |= GPIO_OSPEEDER_OSPEEDR4 | GPIO_OSPEEDER_OSPEEDR5;      //0x11000000;//                        /*!< GPIO port output speed register,       Address offset: 0x08      */
     GPIOB->PUPDR   |= GPIO_PUPDR_PUPDR4_1 | GPIO_PUPDR_PUPDR5_1 ;           // Pull Down                        /*!< GPIO port pull-up/pull-down register,  Address offset: 0x0C      */
-    GPIOB->AFR[0]  |= GPIO_AFRL_AFRL5_1 | GPIO_AFRL_AFRL4_1;//0x11000011 ;                                          //  AF01 for PA0 & PA1              /*!< GPIO alternate function registers,     Address offset: 0x20-0x24 */
+    GPIOB->AFR[0]  |= GPIO_AFRL_AFRL5_1 | GPIO_AFRL_AFRL4_1;//0x11000011 ;                                          //  AF01 for PB4 & PB5              /*!< GPIO alternate function registers,     Address offset: 0x20-0x24 */
     GPIOB->AFR[1]  |= 0x00000000 ;                                          //                                  /*!< GPIO alternate function registers,     Address offset: 0x20-0x24 */
    
-    // configure TIM2 as Encoder input
+    // configure TIM3 as Encoder input
     RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;  // Enable clock for TIM3
  
     TIM3->CR1   = 0x0001;     // CEN(Counter ENable)='1'     < TIM control register 1
@@ -57,7 +67,7 @@ void setupQuadTimers(){
 }
 
 uint32_t readQuadA(){
-    return TIM2->CNT;
+    return (uint16_t)TIM2->CNT; // Treat the encoder as a 16-bit timer (even if TIM2 is a 32 bit timer)
 }
 uint32_t readQuadB(){
     return TIM3->CNT;

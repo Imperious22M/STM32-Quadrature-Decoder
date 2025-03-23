@@ -13,10 +13,6 @@
 #endif
 
 // Quadrature decoders pinout and settings
-#define T1CH1_Pin PA8 // Quadrature A1 encoder1Channel input pin
-#define T1CH2_Pin PA9 // Quadrature B1 encoder1Channel input pin
-//#define T2CH1_Pin PA15 // Quadrature A2 encoder1Channel input pin
-//#define T2CH2_Pin PB3 // Quadrature B2 encoder1Channel input pin
 #define ticksPerRevolution 50*4 // Number of "ticks" per revolution
 #define teethNum 25 // number of teeth the gear has
 
@@ -36,7 +32,7 @@ HardwareTimer *singleDecTimer2;
 
 
 // Speed update rate in HZ
-#define SPEED_UPDATE_RATE_HZ 1000
+#define SPEED_UPDATE_RATE_HZ 20
 // Period of update rat2
 double tpsTimerate =  1.0/SPEED_UPDATE_RATE_HZ; 
 // Ticks per second of the encoder shaft #1
@@ -47,8 +43,12 @@ volatile double ticksPerSec2 = 0;
 volatile uint32_t prevTickCnt1 = 0;
 volatile uint32_t prevTickCnt2 = 0;
 // Tick Differentials
-volatile int tickDiff1 = 0;
-volatile int tickDiff2 = 0;
+volatile long int tickDiff1 = 0;
+volatile long int tickDiff2 = 0;
+// Quadrature direction
+volatile bool dir1 = 0;
+volatile bool dir2 = 0;
+
 
 // Function signature of speed calculation interrupt
 void calcTickPerSec();
@@ -63,6 +63,7 @@ HardwareTimer *tpsTimer = new HardwareTimer(TIM5);
 // Meant to be used as an ISR
 void calcTickDiff(){
   // Current count of each shaft
+  // Treat the encoder as 16-bit values
   uint32_t curTickCnt1 = readQuadA();
   uint32_t curTickCnt2 = readQuadB();
   tickDiff1 = curTickCnt1 - prevTickCnt1;
@@ -78,8 +79,8 @@ void calcTickDiff(){
   static int indexTick1 = 0;
   static int indexTick2 = 0;
   const int avrgArraySize = SPEED_UPDATE_RATE_HZ;
-
-  // rollover test
+  int dir1Loc = 0;
+  int dir2Loc = 0;
 
   if(indexTick1==avrgArraySize){
     indexTick1=0;
@@ -94,8 +95,8 @@ void calcTickDiff(){
   // Calculate the average for both tick 1 and tick 2
   int totalTicks1=0;
   int totalTicks2=0;
-  int periodsTicked1=0;
-  int periodsTicked2=0;
+  uint32_t periodsTicked1=0;
+  uint32_t periodsTicked2=0;
   for(int x=0;x<avrgArraySize;x++){
     if(avgTick1[x]!=0){
       totalTicks1+=avgTick1[x];
@@ -111,17 +112,46 @@ void calcTickDiff(){
   if(periodsTicked1>0){
     //ticksPerSec1 = (float)totalTicks1/(periodsTicked1*tpsTimerate); 
     ticksPerSec1 = ((double)totalTicks1*tpsTimerate)/(periodsTicked1);
+    if(ticksPerSec1>0){
+      dir1Loc = 0;
+    }else{
+      dir1Loc = 1;
+    }
   }else{
     ticksPerSec1 = 0;
   }
   if(periodsTicked2>0){
     //ticksPerSec2 = (double)totalTicks2/(periodsTicked2*tpsTimerate);
     ticksPerSec2 = ((double)totalTicks2*tpsTimerate)/(periodsTicked2);
+    if(ticksPerSec2>0){
+      dir2Loc = 0;
+    }else{
+      dir2Loc = 1;
+    }
   }else{
     ticksPerSec2 = 0;
   }
-  //ticksPerSec1 = (1/tpsTimerate)*tickDiff1;
 
+  // Account for overflow/underflow of counters
+  if(dir1==0 && dir1Loc==1 && (-(tickDiff1)+curTickCnt1)>=UINT16_MAX){
+    // If direction changes and ticks read in total are greater are equal to 
+    //Serial.println("OVERFLOW_1");
+    Serial.println(tickDiff1);
+    Serial.println(curTickCnt1);
+    Serial.println(-(tickDiff1)+curTickCnt1);
+    delay(3000);
+  }
+  if(dir1==1 && dir1Loc==0 && (tickDiff1+curTickCnt1)>=UINT16_MAX){
+    //Serial.println("UNDERFLOW_1");
+    Serial.println(tickDiff1);
+    Serial.println(curTickCnt1);
+    Serial.println(tickDiff1+curTickCnt1);
+    delay(3000);
+  }
+
+  // Update diretion
+  dir1 = dir1Loc;
+  dir2 = dir2Loc;
   // Assign previous ticks to current ticks
   prevTickCnt1 = curTickCnt1;
   prevTickCnt2 = curTickCnt2;
@@ -262,10 +292,10 @@ void loop()
   //Serial.println(quadDecoder.getDirBit());
   Serial.print("TPS1:");
   Serial.println(ticksPerSec1);
-  Serial.print("Count_2:");
-  Serial.println(readQuadB());
-  Serial.print("TPS2:");
-  Serial.println(ticksPerSec2);
+  //Serial.print("Count_2:");
+  //Serial.println(readQuadB());
+  //Serial.print("TPS2:");
+  //Serial.println(ticksPerSec2);
     /* Print frequency measured on Serial monitor every seconds */
   //Serial.println((String)"Freq1:"+frequencyMeasured1);
   //Serial.println((String)"RPS1:"+(float)frequencyMeasured1/teethNum);
