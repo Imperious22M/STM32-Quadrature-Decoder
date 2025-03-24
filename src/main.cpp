@@ -43,7 +43,7 @@ void calcTickPerSec();
 void sendCANMessage();
 
 // Timer to obtain TPS at a set interval
-HardwareTimer *tpsTimer = new HardwareTimer(TIM5);
+HardwareTimer *tpsTimer = new HardwareTimer(TIM2);
 
 // Calculates the differenc in Ticks and the corresponding TPS
 // using a rolling average
@@ -160,14 +160,14 @@ void loop()
 {
   Serial.print("Count_1:");
   Serial.println(quadCnt1);
-  Serial.print("Dir1:");
-  Serial.println(dir1);
-  Serial.print("TPS1:");
-  Serial.println(ticksPerSec1);
+  //Serial.println(TIM5->CNT);
   Serial.print("Count_2:");
   Serial.println(quadCnt2);
+  //Serial.println(TIM3->CNT);
   Serial.print("Dir2:");
   Serial.println(dir2);
+  Serial.print("TPS1:");
+  Serial.println(ticksPerSec1);
   Serial.print("TPS2:");
   Serial.println(ticksPerSec2);
   Serial.println((String)"Freq1:"+frequencyMeasuredA);

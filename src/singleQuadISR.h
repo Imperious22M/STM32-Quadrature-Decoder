@@ -4,6 +4,8 @@
 // Timers used: TIM1 and TIM 4
 // TIM1 -> Single Encoder A
 // TIM4 -> Single Encoder B
+// QuadA: PA10
+// QuadBL PB8
 #define SINGLE_ENCODER_A_PIN PA10 // Single encoder A
 #define ENCODER_A_CHANNEL 3
 #define SINGLE_ENCODER_B_PIN PB8 // Single encoder B
