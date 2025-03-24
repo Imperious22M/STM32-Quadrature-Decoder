@@ -5,11 +5,8 @@
 
 #include <stm32yyxx_ll_tim.h>
 
-void overflowISRTest(){
-  Serial.println("OVERFLOW_ISR");
-  delay(4000);
-}
-
+// Starts both quad encoders at CNT = 32768 to avoid overflows
+// CNT is reset when encoders are read
 void setupQuadTimers(){
     static HardwareTimer *quadA = new HardwareTimer(TIM2);
 
@@ -36,9 +33,7 @@ void setupQuadTimers(){
     TIM2->PSC   = 0x0000;     // Prescaler = (0+1)           < TIM prescaler
     TIM2->ARR   = 0xffffffff; // reload at 0xfffffff         < TIM auto-reload register
     //Tim2->BDTR
-    TIM2->CNT = 0xfff0;  //reset the counter before we use it 
-    TIM2->DIER = TIM_DIER_UIE; // Enable update interrupt
-    quadA->attachInterrupt(overflowISRTest);
+    TIM2->CNT = 0x8000;  //reset the counter before we use it 
 
     // TIM3 is 16 bit
     // Configure Quad Encoder B (TIM3) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -63,14 +58,19 @@ void setupQuadTimers(){
     TIM3->PSC   = 0x0000;     // Prescaler = (0+1)           < TIM prescaler
     TIM3->ARR   = 0xffffffff; // reload at 0xfffffff         < TIM auto-reload register
     //Tim3->BDTR
-    TIM3->CNT = 0x0000;  //reset the counter before we use it 
+    TIM3->CNT = 0x8000;  //reset the counter before we use it 
 }
-
+// read functions reset actual quadrature cnt register
+// to 32768 (base 10) to avoid overflows during normal operation
 uint32_t readQuadA(){
-    return (uint16_t)TIM2->CNT; // Treat the encoder as a 16-bit timer (even if TIM2 is a 32 bit timer)
+    uint32_t ret = (uint16_t)TIM2->CNT; // Treat the encoder as a 16-bit timer (even if TIM2 is a 32 bit timer)
+    TIM2->CNT = 0x8000;
+    return ret;
 }
 uint32_t readQuadB(){
-    return TIM3->CNT;
+    uint32_t ret = TIM3->CNT;
+    TIM3->CNT = 0x8000;
+    return ret;
 }
 bool readDirQuadA(){
     return TIM2->CR1 & TIM_CR1_DIR; // DOUBLE CHECK!!

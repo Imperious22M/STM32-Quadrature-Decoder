@@ -32,7 +32,7 @@ HardwareTimer *singleDecTimer2;
 
 
 // Speed update rate in HZ
-#define SPEED_UPDATE_RATE_HZ 20
+#define SPEED_UPDATE_RATE_HZ 1000
 // Period of update rat2
 double tpsTimerate =  1.0/SPEED_UPDATE_RATE_HZ; 
 // Ticks per second of the encoder shaft #1
@@ -40,14 +40,17 @@ volatile double ticksPerSec1 = 0;
 // Ticks per second of the encoder shaft #2
 volatile double ticksPerSec2 = 0;
 // previouslt measured ticks
-volatile uint32_t prevTickCnt1 = 0;
-volatile uint32_t prevTickCnt2 = 0;
+volatile uint32_t prevTickCnt1 = 0x8000;
+volatile uint32_t prevTickCnt2 = 0x8000;
 // Tick Differentials
 volatile long int tickDiff1 = 0;
 volatile long int tickDiff2 = 0;
 // Quadrature direction
 volatile bool dir1 = 0;
 volatile bool dir2 = 0;
+// Quadrature count
+long int quadCnt1 = 0;
+long int quadCnt2 = 0;
 
 
 // Function signature of speed calculation interrupt
@@ -57,6 +60,25 @@ void sendCANMessage();
 
 // Timer to obtain TPS at a set interval
 HardwareTimer *tpsTimer = new HardwareTimer(TIM5);
+
+#define ONE_PERIOD 65536
+#define HALF_PERIOD 32768
+//https://electronics.stackexchange.com/questions/605278/how-to-increase-stm32-timer-encoder-mode-counter-value
+int32_t unwrap_encoder(uint16_t in, int32_t  prev)
+{
+    int32_t c32 = (int32_t)in - HALF_PERIOD;    //remove half period to determine (+/-) sign of the wrap
+    int32_t dif = (c32-prev);  //core concept: prev + (current - prev) = current
+
+    //wrap difference from -HALF_PERIOD to HALF_PERIOD. modulo prevents differences after the wrap from having an incorrect result
+    int32_t mod_dif = ((dif + HALF_PERIOD) % ONE_PERIOD) - HALF_PERIOD;
+    if(dif < -HALF_PERIOD)
+        mod_dif += ONE_PERIOD;  //account for mod of negative number behavior in C
+
+    int32_t unwrapped = prev + mod_dif;
+    //*prev = unwrapped;  //load previous value
+
+    return unwrapped + HALF_PERIOD; //remove the shift we applied at the beginning, and return
+}
 
 // Calculates the differenc in Ticks and the corresponding TPS
 // using a rolling average
@@ -68,7 +90,10 @@ void calcTickDiff(){
   uint32_t curTickCnt2 = readQuadB();
   tickDiff1 = curTickCnt1 - prevTickCnt1;
   tickDiff2 = curTickCnt2 - prevTickCnt2;
-
+  // update quadrature decoder counts
+  quadCnt1+=tickDiff1;
+  quadCnt2+=tickDiff2;
+  
   // Experimental rolling average
   // Takes the number of ticks that have been received and averages them over
   // the number of readings set. TPS is set to 0 when all the numbers inside the
@@ -123,6 +148,7 @@ void calcTickDiff(){
   if(periodsTicked2>0){
     //ticksPerSec2 = (double)totalTicks2/(periodsTicked2*tpsTimerate);
     ticksPerSec2 = ((double)totalTicks2*tpsTimerate)/(periodsTicked2);
+  
     if(ticksPerSec2>0){
       dir2Loc = 0;
     }else{
@@ -132,29 +158,17 @@ void calcTickDiff(){
     ticksPerSec2 = 0;
   }
 
-  // Account for overflow/underflow of counters
-  if(dir1==0 && dir1Loc==1 && (-(tickDiff1)+curTickCnt1)>=UINT16_MAX){
-    // If direction changes and ticks read in total are greater are equal to 
-    //Serial.println("OVERFLOW_1");
-    Serial.println(tickDiff1);
-    Serial.println(curTickCnt1);
-    Serial.println(-(tickDiff1)+curTickCnt1);
-    delay(3000);
+  if(TIM2->CNT > 0x8000){
+    dir1Loc = 1;
   }
-  if(dir1==1 && dir1Loc==0 && (tickDiff1+curTickCnt1)>=UINT16_MAX){
-    //Serial.println("UNDERFLOW_1");
-    Serial.println(tickDiff1);
-    Serial.println(curTickCnt1);
-    Serial.println(tickDiff1+curTickCnt1);
-    delay(3000);
-  }
+
 
   // Update diretion
   dir1 = dir1Loc;
   dir2 = dir2Loc;
   // Assign previous ticks to current ticks
-  prevTickCnt1 = curTickCnt1;
-  prevTickCnt2 = curTickCnt2;
+  //prevTickCnt1 = curTickCnt1;
+  //prevTickCnt2 = curTickCnt2;
 }
 
 // Single encoder decoding functions
@@ -284,18 +298,17 @@ void setup()
 
 void loop()
 {
-
   //calcTickPerSec_1();
   Serial.print("Count_1:");
-  Serial.println(readQuadA());
+  Serial.println(quadCnt1);
   //Serial.print("Dir1:");
   //Serial.println(quadDecoder.getDirBit());
   Serial.print("TPS1:");
   Serial.println(ticksPerSec1);
-  //Serial.print("Count_2:");
-  //Serial.println(readQuadB());
-  //Serial.print("TPS2:");
-  //Serial.println(ticksPerSec2);
+  Serial.print("Count_2:");
+  Serial.println(quadCnt2);
+  Serial.print("TPS2:");
+  Serial.println(ticksPerSec2);
     /* Print frequency measured on Serial monitor every seconds */
   //Serial.println((String)"Freq1:"+frequencyMeasured1);
   //Serial.println((String)"RPS1:"+(float)frequencyMeasured1/teethNum);
