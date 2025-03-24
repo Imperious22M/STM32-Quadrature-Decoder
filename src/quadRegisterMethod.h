@@ -5,6 +5,11 @@
 
 #include <stm32yyxx_ll_tim.h>
 
+// Quadrature pins
+// QuadA: PA0 & PA1
+// QuadB: PB4 & PB5
+// Timers used: TIM2 & TIM3
+
 // Starts both quad encoders at CNT = 32768 to avoid overflows
 // CNT is reset when encoders are read
 void setupQuadTimers(){
@@ -74,4 +79,7 @@ uint32_t readQuadB(){
 }
 bool readDirQuadA(){
     return TIM2->CR1 & TIM_CR1_DIR; // DOUBLE CHECK!!
+}
+bool readDirQuadB(){
+    return TIM3->CR1 & TIM_CR1_DIR; // DOUBLE CHECK!!
 }
