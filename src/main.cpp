@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <quadRegisterMethod.h>
 #include <singleQuadISR.h>
+#include <canHelpers.h>
 
 /*
   Quadrature Decoder example using hardware timer 1 (Ch1 and Ch2)
@@ -125,6 +126,9 @@ void setup()
 
   // Configure quadrature decoders
   setupQuadTimers();
+
+  // Setup CAN Module
+  setupCAN();
 
   // Start TPS timer for the quadrature decoders
   tpsTimer->setOverflow(TPS_REFRESH_RATE,HERTZ_FORMAT); // Update speed at the set Hz rate

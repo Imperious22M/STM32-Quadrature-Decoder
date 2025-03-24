@@ -7,7 +7,6 @@
 #define MISO_CAN PA6
 #define SCK_CAN  PA5
 #define CS_CAN   PA4
-#define CS_PIN    PA4
 // Set CAN bus baud rate
 #define CAN_BAUDRATE (500000)
 // CAN packet transmission rate
@@ -23,18 +22,25 @@
   // CAN Bus module configuration
   //pinMode(CS_PIN,OUTPUT);
 
-  // The amazon CAN modules have 8 Mhz crystals by default
-  //canTransceiver.setClockFrequency(8e6);
-  // If CAN controller is not found, fail to read encoders
- // if (!canTransceiver.begin(CAN_BAUDRATE)) {
- //   while(1) {
- //   delay(1000);
- //   Serial.println("Error initializing canTransceiver2515.");
- //   }
- // }
 
 // CAN Controller object
 Adafruit_MCP2515 canTransceiver(CS_CAN,MOSI_CAN,MISO_CAN,SCK_CAN);
+
+// Start CAN communications
+void setupCAN(){
+
+  pinMode(CS_CAN,OUTPUT);
+ // The amazon CAN modules have 8 Mhz crystals by default
+ canTransceiver.setClockFrequency(8e6);
+ // If CAN controller is not found, fail to read encoders
+if (!canTransceiver.begin(CAN_BAUDRATE)) {
+   while(1) {
+   delay(1000);
+   Serial.println("Error initializing canTransceiver2515.");
+   }
+  }
+}
+
 // Send a CAN message with speed and direction
 void sendCanMessage(){
   canTransceiver.beginPacket(0x12);
