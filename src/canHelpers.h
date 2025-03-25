@@ -9,23 +9,21 @@
 #define SCK_CAN  PB13
 #define CS_CAN   PB12
 // Set CAN bus baud rate
-#define CAN_BAUDRATE (250000)
+#define CAN_BAUDRATE (500000)
 // CAN packet transmission rate
 #define CAN_UPDATE_RATE_HZ 100
-  // Setup CAN update Timer
-  //CANTimer->setOverflow(1,HERTZ_FORMAT); // Send CAN messages at the set Hz rate
-  //CANTimer->setOverflow(62499);
-  //CANTimer->setPrescaleFactor(1151);
-  //CANTimer->attachInterrupt(calc1Sec);
-  //Start CAN timer
-  //CANTimer->resume();
-
-  // CAN Bus module configuration
-  //pinMode(CS_PIN,OUTPUT);
-
+// CAN BUS Adresses
+#define frontLeftCANAddress 0x2e1
+#define frontRightCANAddress 0x2e2
+#define backLeftCANAddress 0x2e3
+#define backRightCANAddress 0x2e4
+// Global variables to use for CAN ISR
+//int TPS1=0, TPS2=0, HZA=0, HZB=0;
 
 // CAN Controller object
 Adafruit_MCP2515 canTransceiver(CS_CAN,MOSI_CAN,MISO_CAN,SCK_CAN);
+// Timer for updating CAN at a set interval 
+HardwareTimer *canTimer = new HardwareTimer(TIM9);
 
 // Start CAN communications
 void setupCAN(){
@@ -50,15 +48,5 @@ if (!canTransceiver.begin(CAN_BAUDRATE)) {
    Serial.println("Error initializing canTransceiver2515.");
    }
   }
-}
 
-// Send a CAN message with speed and direction
-void sendCanMessage(){
-  canTransceiver.beginPacket(0x12);
-  canTransceiver.write('a');
-  canTransceiver.write('a');
-  canTransceiver.write('a');
-  canTransceiver.write('a');
-  canTransceiver.write('a');
-  canTransceiver.endPacket();
 }

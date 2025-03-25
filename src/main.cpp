@@ -38,10 +38,16 @@ volatile bool dir2 = 0;
 long int quadCnt1 = 0;
 long int quadCnt2 = 0;
 
+// Timers used
+// TIM1 -> Single Encoder A timer (HZA)
+// TIM2 -> TPS interval timer
+// TIM3 -> QuadB (TPS2)
+// TIM4 -> Single Encoder B timer (HZB)
+// TIM5 -> QuadA (TPS2)
+// TIM9 -> CAN Message Interrupt (TEST!)
+
 // Function signature of speed calculation interrupt
 void calcTickPerSec();
-// Function signature to send speed and direction to CAN bus
-void sendCANMessage();
 
 // Timer to obtain TPS at a set interval
 HardwareTimer *tpsTimer = new HardwareTimer(TIM2);
@@ -114,11 +120,40 @@ void calcTickDiff(){
   // Update diretion
   dir1 = (ticksPerSec1>0&&ticksPerSec1!=0)? 0 : 1;
   dir2 = (ticksPerSec1>0&&ticksPerSec2!=0)? 0 : 1;
-  // Assign previous ticks to current ticks
-  //prevTickCnt1 = curTickCnt1;
-  //prevTickCnt2 = curTickCnt2;
+  
+  // Update global CAN variables
+  //TPS1 = ticksPerSec1;
+  //TPS2 = ticksPerSec2;
+  //HZA = frequencyMeasuredA;
+  //HZB = frequencyMeasuredB;
 }
 
+// Send a CAN message with speed and direction
+// TPS1 = back left wheel, TPS2 = back right wheel
+// HZ1 = front left wheel, HZ2 = front right wheel
+void sendCanMessage(){
+  //canTransceiver.beginPacket(0x12);
+  //canTransceiver.write('a');
+  //canTransceiver.write('a');
+  //canTransceiver.write('a');
+  //canTransceiver.write('a');
+  //canTransceiver.write('a');
+  //canTransceiver.endPacket();
+  canTransceiver.beginPacket(backLeftCANAddress);
+  canTransceiver.printf("%i",ticksPerSec1);
+  canTransceiver.endPacket();
+  canTransceiver.beginPacket(backRightCANAddress);
+  canTransceiver.printf("%i",ticksPerSec2);
+  canTransceiver.endPacket();
+  canTransceiver.beginPacket(frontLeftCANAddress);
+  canTransceiver.printf("%i",frequencyMeasuredA);
+  canTransceiver.endPacket();
+  canTransceiver.beginPacket(frontRightCANAddress);
+  canTransceiver.printf("%i",frequencyMeasuredB);
+  canTransceiver.endPacket();
+  Serial.println("CAN SENT!");
+  Serial.println(millis());
+}
 
 void setup()
 {
@@ -137,6 +172,11 @@ void setup()
   // Calculate the actual HZ rate of the timer (the requested is accurate up to 10^-3)
   tpsTimerate = ((double)tpsTimer->getTimerClkFreq() / (double)tpsTimer->getPrescaleFactor()/(double)tpsTimer->getOverflow());
 
+  // Setup CAN Timer
+  canTimer->setOverflow(CAN_UPDATE_RATE_HZ,HERTZ_FORMAT); // Update speed at the set Hz rate
+  canTimer->attachInterrupt(sendCanMessage); // Attach the speed calculation function to the timer
+  canTimer->resume();
+
   // Frequency measure of the single channel encoders
   singleDecTimerA = new HardwareTimer(TIM1);
   // Configure rising edge detection to measure frequency
@@ -147,10 +187,6 @@ void setup()
   singleDecTimerA->resume();
     // Compute this scale factor only once
   inputFreqA = singleDecTimerA->getTimerClkFreq() / singleDecTimerA->getPrescaleFactor();
-  //while(true){
-  //  Serial.println(inputFreqA);
-  //  delay(1000);
-  //}
 
   singleDecTimerB = new HardwareTimer(TIM4);
   // Configure rising edge detection to measure frequency
@@ -168,10 +204,8 @@ void loop()
 {
   Serial.print("Count_1:");
   Serial.println(quadCnt1);
-  //Serial.println(TIM5->CNT);
   Serial.print("Count_2:");
   Serial.println(quadCnt2);
-  //Serial.println(TIM3->CNT);
   Serial.print("Dir2:");
   Serial.println(dir2);
   Serial.print("TPS1:");
