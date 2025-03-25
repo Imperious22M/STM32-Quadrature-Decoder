@@ -18,7 +18,7 @@
 #define ticksPerRevolution 50*4 // Number of "ticks" per revolution
 #define teethNum 25 // number of teeth the gear has
 // Speed update rate in HZ
-#define TPS_REFRESH_RATE 100
+#define TPS_REFRESH_RATE 1000
 // Period of TPS update rate
 double tpsTimerate =  1.0/TPS_REFRESH_RATE; 
 // Ticks per second of the encoder shaft #1
@@ -147,6 +147,10 @@ void setup()
   singleDecTimerA->resume();
     // Compute this scale factor only once
   inputFreqA = singleDecTimerA->getTimerClkFreq() / singleDecTimerA->getPrescaleFactor();
+  //while(true){
+  //  Serial.println(inputFreqA);
+  //  delay(1000);
+  //}
 
   singleDecTimerB = new HardwareTimer(TIM4);
   // Configure rising edge detection to measure frequency
@@ -174,6 +178,7 @@ void loop()
   Serial.println(ticksPerSec1);
   Serial.print("TPS2:");
   Serial.println(ticksPerSec2);
+  Serial.println();
   Serial.println((String)"Freq1:"+frequencyMeasuredA);
   Serial.println((String)"RPS1:"+(float)frequencyMeasuredA/teethNum);
   Serial.println((String)"Freq2:"+frequencyMeasuredB);

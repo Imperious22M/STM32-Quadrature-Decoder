@@ -27,13 +27,7 @@ void inputCaptureRisingA(void)
 {
   currentCaptureA = singleDecTimerA->getCaptureCompare(ENCODER_A_CHANNEL);
   /* frequency computation */
-  if (currentCaptureA > lastCaptureA) {
-    frequencyMeasuredA = inputFreqA / (currentCaptureA - lastCaptureA);
-  }
-  else if (currentCaptureA <= lastCaptureA) {
-    /* 0x1000 is max overflow value */
-    frequencyMeasuredA = inputFreqA / (0x10000 + currentCaptureA - lastCaptureA);
-  }
+  frequencyMeasuredA = inputFreqA / ((currentCaptureA - lastCaptureA) % 65536);
   lastCaptureA = currentCaptureA;
   rolloverComparecountA = 0;
 }
@@ -54,13 +48,7 @@ void inputCaptureRisingB(void)
 {
   currentCaptureB = singleDecTimerB->getCaptureCompare(ENCODER_B_CHANNEL);
   /* frequency computation */
-  if (currentCaptureB > lastCaptureB) {
-    frequencyMeasuredB = inputFreqB / (currentCaptureB - lastCaptureB);
-  }
-  else if (currentCaptureB <= lastCaptureB) {
-    /* 0x1000 is max overflow value */
-    frequencyMeasuredB = inputFreqB / (0x10000 + currentCaptureB - lastCaptureB);
-  }
+  frequencyMeasuredB = inputFreqB / ((currentCaptureB - lastCaptureB) % 65536);
   lastCaptureB = currentCaptureB;
   rolloverComparecountB = 0;
 }
