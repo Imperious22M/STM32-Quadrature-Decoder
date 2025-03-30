@@ -135,27 +135,35 @@ void calcTickDiff(){
 // TPS1 = back left wheel, TPS2 = back right wheel
 // HZ1 = front left wheel, HZ2 = front right wheel
 void sendCanMessage(){
-  canTransceiver.beginPacket(0x12);
-  canTransceiver.write('a');
-  canTransceiver.write('b');
-  canTransceiver.write('c');
-  canTransceiver.write('d');
-  canTransceiver.write('e');
-  canTransceiver.endPacket();
-  //canTransceiver.beginPacket(backLeftCANAddress);
-  //canTransceiver.printf("%i",ticksPerSec1);
+  //canTransceiver.beginPacket(0x12);
+  //canTransceiver.write('a');
+  //canTransceiver.write('b');
+  //canTransceiver.write('c');
+  //canTransceiver.write('d');
+  //canTransceiver.write('e');
   //canTransceiver.endPacket();
-  //canTransceiver.beginPacket(backRightCANAddress);
-  //canTransceiver.printf("%i",ticksPerSec2);
-  //canTransceiver.endPacket();
-  //canTransceiver.beginPacket(frontLeftCANAddress);
-  //canTransceiver.printf("%i",frequencyMeasuredA);
-  //canTransceiver.endPacket();
-  //canTransceiver.beginPacket(frontRightCANAddress);
-  //canTransceiver.printf("%i",frequencyMeasuredB);
-  //canTransceiver.endPacket();
-  Serial.println("CAN SENT!");
-  Serial.println(millis());
+  ////canTransceiver.beginPacket(backLeftCANAddress);
+  ////canTransceiver.printf("%i",ticksPerSec1);
+  ////canTransceiver.endPacket();
+  ////canTransceiver.beginPacket(backRightCANAddress);
+  ////canTransceiver.printf("%i",ticksPerSec2);
+  ////canTransceiver.endPacket();
+  ////canTransceiver.beginPacket(frontLeftCANAddress);
+  ////canTransceiver.printf("%i",frequencyMeasuredA);
+  ////canTransceiver.endPacket();
+  ////canTransceiver.beginPacket(frontRightCANAddress);
+  ////canTransceiver.printf("%i",frequencyMeasuredB);
+  ////canTransceiver.endPacket();
+  //Serial.println("CAN SENT!");
+  //Serial.println(millis())  
+  byte data[8] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}; 
+  // send data:  ID = 0x100, Standard CAN Frame, Data length = 8 bytes, 'data' = array of data bytes to send
+  byte sndStat = CAN0.sendMsgBuf(0x100, 0, 8, data);
+  if(sndStat == CAN_OK){
+    Serial.println("Message Sent Successfully!");
+  } else {
+    Serial.println("Error Sending Message...");
+  };
 }
 
 void setup()

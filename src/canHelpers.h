@@ -1,13 +1,14 @@
 // File to contain functions related to CAN
 
-#include <Adafruit_MCP2515.h>
+//#include <Adafruit_MCP2515.h>
+#include <mcp_can.h>
 #include<SPI.h>
 
 // SPI pins for CAN Module
 #define MOSI_CAN PB5
-#define MISO_CAN PB9
-#define SCK_CAN  PB6
-#define CS_CAN   PB3
+#define MISO_CAN PB4
+#define SCK_CAN  PB3
+#define CS_CAN   PB6
 // Set CAN bus baud rate
 //#define CAN_BAUDRATE (500000)
 #define CAN_BAUDRATE (250000)
@@ -27,15 +28,16 @@ SPIClass SPI_2(MOSI_CAN,MISO_CAN,SCK_CAN);
 // CAN Controller object
 //Adafruit_MCP2515 canTransceiver(CS_CAN,&SPI_2);
 //Adafruit_MCP2515 mcp(CS_CAN,MOSI_CAN,MISO_CAN,SCK_CAN);
-Adafruit_MCP2515 canTransceiver(CS_CAN,MOSI_CAN,MISO_CAN,SCK_CAN);
-// Timer for updating CAN at a set interval 
-//HardwareTimer *canTimer = new HardwareTimer(TIM10);
 
+//Adafruit_MCP2515 canTransceiver(CS_CAN,MOSI_CAN,MISO_CAN,SCK_CAN);
+
+MCP_CAN CAN0(&SPI_2,CS_CAN);     // Set CS to pin 10
 // Start CAN communications
+
 void setupCAN(){
   
   // Set SPI pins
-  SPI_2.setDataMode(SPI_MODE0);
+  //SPI_2.setDataMode(SPI_MODE0);
 
 
   // Set frequency to 8MHz
@@ -56,19 +58,36 @@ void setupCAN(){
   //pinMode(MISO_CAN,INPUT_PULLDOWN);
   //pinMode(MOSI_CAN,INPUT_PULLDOWN);
   
-  canTransceiver.setClockFrequency(8e6);
-   if (!canTransceiver.begin(CAN_BAUDRATE)) {
-     pinMode(LED_BUILTIN,OUTPUT);
-     while(1) {
+  //canTransceiver.setClockFrequency(8e6)  // Initialize MCP2515 running at 16MHz with a baudrate of 500kb/s and the masks and filters disabled.
+  if(CAN0.begin(MCP_ANY, CAN_500KBPS, MCP_8MHZ) == CAN_OK) Serial.println("MCP2515 Initialized Successfully!");
+  else
+  {
+    pinMode(LED_BUILTIN,OUTPUT);
+    while(1){
+
         digitalWrite(LED_BUILTIN,HIGH);
         delay(100);
         digitalWrite(LED_BUILTIN,LOW);
         Serial.println("Error initializing MCP2515.");
         delay(100);
-     if(canTransceiver.begin(CAN_BAUDRATE)){
-      break;
-     }
-     }
-   }
+    Serial.println("MCP2515 Initialization Failed!");
+    }
+  }
 
+
+  // if (!CAN0.begin(MCP_ANY, CAN_500KBPS, MCP_8MHZ) == CAN_OK) {
+  //   pinMode(LED_BUILTIN,OUTPUT);
+  //   while(1) {
+  //      digitalWrite(LED_BUILTIN,HIGH);
+  //      delay(100);
+  //      digitalWrite(LED_BUILTIN,LOW);
+  //      Serial.println("Error initializing MCP2515.");
+  //      delay(100);
+  //   if(CAN0.begin(MCP_ANY, CAN_500KBPS, MCP_16MHZ) == CAN_OK){
+  //    break;
+  //   }
+  //   }
+  // }
+
+   CAN0.setMode(MCP_NORMAL);   // Change to normal mode to allow messages to be transmitted
 }
