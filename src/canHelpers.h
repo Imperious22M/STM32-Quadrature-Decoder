@@ -5,10 +5,10 @@
 #include<SPI.h>
 
 // SPI pins for CAN Module
-#define MOSI_CAN PB5
-#define MISO_CAN PB4
-#define SCK_CAN  PB3
-#define CS_CAN   PB6
+#define MOSI_CAN PB15
+#define MISO_CAN PB14
+#define SCK_CAN  PB13
+#define CS_CAN   PB12
 // Set CAN bus baud rate
 //#define CAN_BAUDRATE (500000)
 #define CAN_BAUDRATE (250000)
@@ -88,6 +88,8 @@ void setupCAN(){
   //   }
   //   }
   // }
+
+   //CAN0.mcp2515_setCANCTRL_Mode(MODE_ONESHOT);
 
    CAN0.setMode(MCP_NORMAL);   // Change to normal mode to allow messages to be transmitted
 }

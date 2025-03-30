@@ -158,6 +158,7 @@ void sendCanMessage(){
   //Serial.println(millis())  
   byte data[8] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}; 
   // send data:  ID = 0x100, Standard CAN Frame, Data length = 8 bytes, 'data' = array of data bytes to send
+  CAN0.enOneShotTX();
   byte sndStat = CAN0.sendMsgBuf(0x100, 0, 8, data);
   if(sndStat == CAN_OK){
     Serial.println("Message Sent Successfully!");
@@ -171,13 +172,10 @@ void setup()
   Serial.begin(115200);
 
   // Configure quadrature decoders
-  //setupQuadTimers();
+  setupQuadTimers();
 
   // Setup CAN Module
 
-  pinMode(PB8,OUTPUT);
-  digitalWrite(PB8,LOW);
-  digitalWrite(PB8,HIGH);
   setupCAN();
   //CHECK!!!!
   //canTransceiver.setClockFrequency(8e6);
@@ -249,7 +247,7 @@ void loop()
   Serial.println((String)"RPS1:"+(float)frequencyMeasuredA/teethNum);
   Serial.println((String)"Freq2 (FR):"+frequencyMeasuredB);
   Serial.println((String)"RPS2:"+(float)frequencyMeasuredB/teethNum);
-  delay(100);
-
   sendCanMessage();
+  delay(1000);
+
 }
