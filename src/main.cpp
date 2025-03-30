@@ -15,8 +15,8 @@
 #endif
 
 // Quadrature decoders settings
-#define ticksPerRevolution 50*4 // Number of "ticks" per revolution
 #define teethNum 25 // number of teeth the gear has
+#define ticksPerRevolution teethNum*4 // Number of "ticks" per revolution
 // Speed update rate in HZ
 #define TPS_REFRESH_RATE 1000
 // Period of TPS update rate
@@ -45,6 +45,8 @@ long int quadCnt2 = 0;
 // TIM4 -> Single Encoder B timer (HZB)
 // TIM5 -> QuadA (TPS2)
 // TIM9 -> CAN Message Interrupt (TEST!)
+
+void sendCanMessage();
 
 // Function signature of speed calculation interrupt
 void calcTickPerSec();
@@ -126,31 +128,32 @@ void calcTickDiff(){
   //TPS2 = ticksPerSec2;
   //HZA = frequencyMeasuredA;
   //HZB = frequencyMeasuredB;
+  //sendCanMessage();
 }
 
 // Send a CAN message with speed and direction
 // TPS1 = back left wheel, TPS2 = back right wheel
 // HZ1 = front left wheel, HZ2 = front right wheel
 void sendCanMessage(){
-  //canTransceiver.beginPacket(0x12);
-  //canTransceiver.write('a');
-  //canTransceiver.write('a');
-  //canTransceiver.write('a');
-  //canTransceiver.write('a');
-  //canTransceiver.write('a');
+  canTransceiver.beginPacket(0x12);
+  canTransceiver.write('a');
+  canTransceiver.write('b');
+  canTransceiver.write('c');
+  canTransceiver.write('d');
+  canTransceiver.write('e');
+  canTransceiver.endPacket();
+  //canTransceiver.beginPacket(backLeftCANAddress);
+  //canTransceiver.printf("%i",ticksPerSec1);
   //canTransceiver.endPacket();
-  canTransceiver.beginPacket(backLeftCANAddress);
-  canTransceiver.printf("%i",ticksPerSec1);
-  canTransceiver.endPacket();
-  canTransceiver.beginPacket(backRightCANAddress);
-  canTransceiver.printf("%i",ticksPerSec2);
-  canTransceiver.endPacket();
-  canTransceiver.beginPacket(frontLeftCANAddress);
-  canTransceiver.printf("%i",frequencyMeasuredA);
-  canTransceiver.endPacket();
-  canTransceiver.beginPacket(frontRightCANAddress);
-  canTransceiver.printf("%i",frequencyMeasuredB);
-  canTransceiver.endPacket();
+  //canTransceiver.beginPacket(backRightCANAddress);
+  //canTransceiver.printf("%i",ticksPerSec2);
+  //canTransceiver.endPacket();
+  //canTransceiver.beginPacket(frontLeftCANAddress);
+  //canTransceiver.printf("%i",frequencyMeasuredA);
+  //canTransceiver.endPacket();
+  //canTransceiver.beginPacket(frontRightCANAddress);
+  //canTransceiver.printf("%i",frequencyMeasuredB);
+  //canTransceiver.endPacket();
   Serial.println("CAN SENT!");
   Serial.println(millis());
 }
@@ -160,11 +163,29 @@ void setup()
   Serial.begin(115200);
 
   // Configure quadrature decoders
-  setupQuadTimers();
+  //setupQuadTimers();
 
   // Setup CAN Module
-  setupCAN();
 
+  pinMode(PB8,OUTPUT);
+  digitalWrite(PB8,LOW);
+  digitalWrite(PB8,HIGH);
+  setupCAN();
+  //CHECK!!!!
+  //canTransceiver.setClockFrequency(8e6);
+  //pinMode(CS_CAN,OUTPUT);
+  // while(!Serial) delay(10);
+  // Serial.println("MCP2515 Sender test!");
+  // if (!canTransceiver.begin(CAN_BAUDRATE)) {
+  //   Serial.println("Error initializing MCP2515.");
+  //   pinMode(LED_BUILTIN,OUTPUT);
+  //   while(1) {
+  //      digitalWrite(LED_BUILTIN,HIGH);
+  //      delay(100);
+  //      digitalWrite(LED_BUILTIN,LOW);
+  //      delay(100);
+  //   }
+  // }
   // Start TPS timer for the quadrature decoders
   tpsTimer->setOverflow(TPS_REFRESH_RATE,HERTZ_FORMAT); // Update speed at the set Hz rate
   tpsTimer->attachInterrupt(calcTickDiff); // Attach the speed calculation function to the timer
@@ -173,9 +194,9 @@ void setup()
   tpsTimerate = ((double)tpsTimer->getTimerClkFreq() / (double)tpsTimer->getPrescaleFactor()/(double)tpsTimer->getOverflow());
 
   // Setup CAN Timer
-  canTimer->setOverflow(CAN_UPDATE_RATE_HZ,HERTZ_FORMAT); // Update speed at the set Hz rate
-  canTimer->attachInterrupt(sendCanMessage); // Attach the speed calculation function to the timer
-  canTimer->resume();
+  //canTimer->setOverflow(CAN_UPDATE_RATE_HZ,HERTZ_FORMAT); // Update speed at the set Hz rate
+  //canTimer->attachInterrupt(sendCanMessage); // Attach the speed calculation function to the timer
+  //canTimer->resume();
 
   // Frequency measure of the single channel encoders
   singleDecTimerA = new HardwareTimer(TIM1);
@@ -208,14 +229,19 @@ void loop()
   Serial.println(quadCnt2);
   Serial.print("Dir2:");
   Serial.println(dir2);
-  Serial.print("TPS1:");
+  Serial.print("TPS1 (BL):");
   Serial.println(ticksPerSec1);
-  Serial.print("TPS2:");
+  Serial.print("TPS2 (BR):");
   Serial.println(ticksPerSec2);
-  Serial.println();
-  Serial.println((String)"Freq1:"+frequencyMeasuredA);
+  Serial.print("M/S1:");
+  Serial.println((ticksPerSec1/(ticksPerRevolution))*1.725);
+  Serial.print("M/S2:");
+  Serial.println((ticksPerSec2/(ticksPerRevolution))*1.725);
+  Serial.println((String)"Freq1 (FL):"+frequencyMeasuredA);
   Serial.println((String)"RPS1:"+(float)frequencyMeasuredA/teethNum);
-  Serial.println((String)"Freq2:"+frequencyMeasuredB);
+  Serial.println((String)"Freq2 (FR):"+frequencyMeasuredB);
   Serial.println((String)"RPS2:"+(float)frequencyMeasuredB/teethNum);
   delay(100);
+
+  sendCanMessage();
 }
