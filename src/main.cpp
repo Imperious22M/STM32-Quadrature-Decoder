@@ -46,8 +46,6 @@ long int quadCnt2 = 0;
 // TIM5 -> QuadA (TPS2)
 // TIM9 -> CAN Message Interrupt (TEST!)
 
-void sendCanMessage();
-
 // Function signature of speed calculation interrupt
 void calcTickPerSec();
 
@@ -123,47 +121,63 @@ void calcTickDiff(){
   dir1 = (ticksPerSec1>0&&ticksPerSec1!=0)? 0 : 1;
   dir2 = (ticksPerSec1>0&&ticksPerSec2!=0)? 0 : 1;
   
-  // Update global CAN variables
-  //TPS1 = ticksPerSec1;
-  //TPS2 = ticksPerSec2;
-  //HZA = frequencyMeasuredA;
-  //HZB = frequencyMeasuredB;
-  //sendCanMessage();
 }
 
-// Send a CAN message with speed and direction
-// TPS1 = back left wheel, TPS2 = back right wheel
-// HZ1 = front left wheel, HZ2 = front right wheel
+// Send a CAN messages with speed and direction
 void sendCanMessage(){
-  //canTransceiver.beginPacket(0x12);
-  //canTransceiver.write('a');
-  //canTransceiver.write('b');
-  //canTransceiver.write('c');
-  //canTransceiver.write('d');
-  //canTransceiver.write('e');
-  //canTransceiver.endPacket();
-  ////canTransceiver.beginPacket(backLeftCANAddress);
-  ////canTransceiver.printf("%i",ticksPerSec1);
-  ////canTransceiver.endPacket();
-  ////canTransceiver.beginPacket(backRightCANAddress);
-  ////canTransceiver.printf("%i",ticksPerSec2);
-  ////canTransceiver.endPacket();
-  ////canTransceiver.beginPacket(frontLeftCANAddress);
-  ////canTransceiver.printf("%i",frequencyMeasuredA);
-  ////canTransceiver.endPacket();
-  ////canTransceiver.beginPacket(frontRightCANAddress);
-  ////canTransceiver.printf("%i",frequencyMeasuredB);
-  ////canTransceiver.endPacket();
-  //Serial.println("CAN SENT!");
-  //Serial.println(millis())  
-  byte data[8] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}; 
+  
+  // The CAN message is a one-shot message, so it will not wait for a response
+  int32_t backLeftTPS = round(ticksPerSec1);
+  int32_t backRightTPS = round(ticksPerSec2);
+  int32_t frontLeftHZ = round(frequencyMeasuredA);
+  int32_t frontRightHZ = round(frequencyMeasuredB);
+
+  // Example CAN message
+  // byte data[8] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}; 
   // send data:  ID = 0x100, Standard CAN Frame, Data length = 8 bytes, 'data' = array of data bytes to send
-  CAN0.enOneShotTX();
-  byte sndStat = CAN0.sendMsgBuf(0x100, 0, 8, data);
-  if(sndStat == CAN_OK){
-    Serial.println("Message Sent Successfully!");
+  // byte sndStat = CAN0.sendMsgBuf(0x100, 0, 8, data);
+  byte bLData[4] = {
+                    static_cast<byte>( (backLeftTPS&0xFF000000)>>24 ),
+                    static_cast<byte>( (backLeftTPS&0x00FF0000)>>16 ),
+                    static_cast<byte>( (backLeftTPS&0x0000FF00)>>8  ),
+                    static_cast<byte>( (backLeftTPS&0x000000FF)     )
+                  };
+  byte sendStat = CAN0.sendMsgBuf(backLeftCANAddress, 0, 4, bLData);
+  if(sendStat == CAN_OK){
+    // If we need to do something to check if CAN message was received then we can do it here.
   } else {
-    Serial.println("Error Sending Message...");
+    // For now I am going to leave this empty as we one-shot needs no response
+  };
+  byte bRData[4] = {
+                    static_cast<byte>( (backRightTPS&0xFF000000)>>24 ),
+                    static_cast<byte>( (backRightTPS&0x00FF0000)>>16 ),
+                    static_cast<byte>( (backRightTPS&0x0000FF00)>>8  ),
+                    static_cast<byte>( (backRightTPS&0x000000FF)     )
+                  };
+  sendStat = CAN0.sendMsgBuf(backRightCANAddress, 0, 4, bRData);
+  if(sendStat == CAN_OK){
+  } else {
+  };
+
+  byte fLData[4] = {
+                    static_cast<byte>( (frontLeftHZ&0xFF000000)>>24 ),
+                    static_cast<byte>( (frontLeftHZ&0x00FF0000)>>16 ),
+                    static_cast<byte>( (frontLeftHZ&0x0000FF00)>>8  ),
+                    static_cast<byte>( (frontLeftHZ&0x000000FF)     )
+                  };
+  sendStat = CAN0.sendMsgBuf(frontLeftCANAddress, 0, 4, fLData);
+  if(sendStat == CAN_OK){
+  } else {
+  };
+  byte fRData[4] = {
+                    static_cast<byte>( (frontRightHZ&0xFF000000)>>24  ),
+                    static_cast<byte>( (frontRightHZ&0x00FF0000)>>16  ), 
+                    static_cast<byte>( (frontRightHZ&0x0000FF00)>>8   ),
+                    static_cast<byte>( (frontRightHZ&0x000000FF)      )
+                  };
+  sendStat = CAN0.sendMsgBuf(frontRightCANAddress, 0, 4, fRData);
+  if(sendStat == CAN_OK){
+  } else {
   };
 }
 
@@ -175,23 +189,8 @@ void setup()
   setupQuadTimers();
 
   // Setup CAN Module
-
   setupCAN();
-  //CHECK!!!!
-  //canTransceiver.setClockFrequency(8e6);
-  //pinMode(CS_CAN,OUTPUT);
-  // while(!Serial) delay(10);
-  // Serial.println("MCP2515 Sender test!");
-  // if (!canTransceiver.begin(CAN_BAUDRATE)) {
-  //   Serial.println("Error initializing MCP2515.");
-  //   pinMode(LED_BUILTIN,OUTPUT);
-  //   while(1) {
-  //      digitalWrite(LED_BUILTIN,HIGH);
-  //      delay(100);
-  //      digitalWrite(LED_BUILTIN,LOW);
-  //      delay(100);
-  //   }
-  // }
+
   // Start TPS timer for the quadrature decoders
   tpsTimer->setOverflow(TPS_REFRESH_RATE,HERTZ_FORMAT); // Update speed at the set Hz rate
   tpsTimer->attachInterrupt(calcTickDiff); // Attach the speed calculation function to the timer
@@ -200,15 +199,16 @@ void setup()
   tpsTimerate = ((double)tpsTimer->getTimerClkFreq() / (double)tpsTimer->getPrescaleFactor()/(double)tpsTimer->getOverflow());
 
   // Setup CAN Timer
-  //canTimer->setOverflow(CAN_UPDATE_RATE_HZ,HERTZ_FORMAT); // Update speed at the set Hz rate
-  //canTimer->attachInterrupt(sendCanMessage); // Attach the speed calculation function to the timer
-  //canTimer->resume();
+  canTimer = new HardwareTimer(TIM9);
+  canTimer->setOverflow(CAN_UPDATE_RATE_HZ,HERTZ_FORMAT); // Update speed at the set Hz rate
+  canTimer->attachInterrupt(sendCanMessage); // Attach the speed calculation function to the timer
+  canTimer->resume();
 
   // Frequency measure of the single channel encoders
   singleDecTimerA = new HardwareTimer(TIM1);
   // Configure rising edge detection to measure frequency
   singleDecTimerA->setMode(ENCODER_A_CHANNEL, TIMER_INPUT_CAPTURE_RISING, SINGLE_ENCODER_A_PIN);
-  singleDecTimerA->setOverflow(SINGLE_ENCODER_REFRESH_RATE,HERTZ_FORMAT); // 1 HZ Refresh Rate 
+  singleDecTimerA->setOverflow(SINGLE_ENCODER_REFRESH_RATE,HERTZ_FORMAT); 
   singleDecTimerA->attachInterrupt(ENCODER_A_CHANNEL, inputCaptureRisingA);
   singleDecTimerA->attachInterrupt(rolloverCaptureRisingA);
   singleDecTimerA->resume();
@@ -218,7 +218,7 @@ void setup()
   singleDecTimerB = new HardwareTimer(TIM4);
   // Configure rising edge detection to measure frequency
   singleDecTimerB->setMode(ENCODER_B_CHANNEL, TIMER_INPUT_CAPTURE_RISING, SINGLE_ENCODER_B_PIN);
-  singleDecTimerB->setOverflow(SINGLE_ENCODER_REFRESH_RATE,HERTZ_FORMAT); // 1 HZ Refresh Rate 
+  singleDecTimerB->setOverflow(SINGLE_ENCODER_REFRESH_RATE,HERTZ_FORMAT);
   singleDecTimerB->attachInterrupt(ENCODER_B_CHANNEL, inputCaptureRisingB);
   singleDecTimerB->attachInterrupt(rolloverCaptureRisingB);
   singleDecTimerB->resume();
@@ -247,7 +247,6 @@ void loop()
   Serial.println((String)"RPS1:"+(float)frequencyMeasuredA/teethNum);
   Serial.println((String)"Freq2 (FR):"+frequencyMeasuredB);
   Serial.println((String)"RPS2:"+(float)frequencyMeasuredB/teethNum);
-  sendCanMessage();
-  delay(1000);
+  delay(100);
 
 }
